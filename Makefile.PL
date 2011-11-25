@@ -13,6 +13,10 @@ my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
 my $version = '00';
 my $buildno = sprintf("%02d%03d",$year % 100,$yday);
 
+open(OUT,">VERSION.STRING");
+print(OUT "$version.$buildno");
+close(OUT);
+
 WriteMakefile(
     NAME                => 'Comskil-JIRA'
     ,VERSION		=> "$version.$buildno"
@@ -26,7 +30,7 @@ ABSTRACT_TEXT
 #    ,VERSION_FROM        => 'lib/Comskil.pm'
 #    ,ABSTRACT_FROM       => 'lib/Comskil.pm'
     ,SIGN                => 0
-    ,PMLIBDIRS           => [ './lib', './lib/Comski', './lib/Comskil/JQueue' ]
+    ,PMLIBDIRS           => [ './lib', './lib/Comskil', './lib/Comskil/JQueue' ]
     ,($ExtUtils::MakeMaker::VERSION gt '6.3002'
       ? ('LICENSE'=> 'restrictive')
       : ())

@@ -8,6 +8,16 @@
 
 package Comskil::JWand;
 
+=head1 NAME
+
+Comskil::JWand - The great new Comskil::JWand!
+
+=head1 VERSION
+
+Version 0.1
+
+=cut
+
 use 5.006;
 use strict;
 use warnings;
@@ -17,14 +27,40 @@ our $COPYRIGHT  = "Copyright (c) 2011 Comskil, Inc.  All Rights Reserved Worldwi
 our $PRODUCT    = "Comskil::JWand";
 our $USER_AGENT = "$PRODUCT\\$VERSION ($COPYRIGHT)";
 
-=head1 NAME
+=head1 SYNOPSIS
 
-Comskil::JWand - The great new Comskil::JWand!
+Quick summary of what the module does.
 
-=head1 VERSION
+Perhaps a little code snippet.
 
-Version 0.1
+    use Comskil::JWand;
 
+    my $foo = Comskil::JWand->new();
+    ...
+=cut
+
+BEGIN {
+    use Exporter (); ### $Exporter::Verbose=1;
+	
+	our ($VERSION, @ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
+ 
+    $VERSION = '0.10';
+    @ISA = qw(Exporter);
+    @EXPORT	= qw( new );
+    @EXPORT_OK = qw( );
+    %EXPORT_TAGS = ( ALL => [ qw(  ) ] );
+}
+
+END { }
+
+=head1 EXPORT
+A list of functions that can be exported.  You can delete this section
+if you don't export anything, such as for a purely object-oriented module.
+=over 8
+=item * new()
+=item * grabVersions()
+=item * grabStatuses()
+=head1 SUBROUTINES/METHODS
 =cut
 
 use Carp;
@@ -47,19 +83,20 @@ sub _connect {
 
 
 
+=head2 new()
+=over 8
+=item :username
+=item :password
+=item :baseurl
+=item :
+=back
+=cut
+
 # Func: new(class_name [, options-hash] )
 # Desc:
 #
 # Args: A hash containing key => value pairs to initialize the class.  The 
 #       valid option keys are:
-=head2 new()
-=over 1
-:username
-:password
-:baseurl
-:
-=cut
-
 sub new {
     my $class = shift;
     my $options = shift;
@@ -91,22 +128,164 @@ sub new {
 	return( $self->{':jira_client'} ? $self : undef);
 }
 
+=head2 jira_handle()
+=cut
+
 sub jira_handle { 
 	my $self = shift;
 	return($self->{':jira_client'}); 
 }
 
+=head2 grabProjectKeys()
+=cut
+
 sub grabProjectKeys {
 	my($self,$regx) = @_;
+}
+
+sub _grab_list {
+	my ($self,@args) = @_;
+	my $ulist = [ ];
+	return(\$ulist);	
+}
+
+=head2 grabPriorities()
+=cut
+
+sub grabPriorities {
+	my ($self,@args) = @_;
+	my $ulist = [ ];
 	
+	$ulist = eval { $self->{':jira_client'}->getPriorities() };
+	croak sprintf("getPriorities(): %s",$@) if $@;
 	
+	$dd = Data::Dumper->new([$ulist]);  print $dd->Dump();
+	return(\$ulist);
+}
+
+=head2 grabStatuses()
+=cut
+
+sub grabStatuses {
+	my ($self,@args) = @_;
+	my $ulist = [ ];
+	
+	$ulist = eval { $self->{':jira_client'}->getStatuses() };
+	croak sprintf("getStatuses(): %s",$@) if $@;
+	
+	$dd = Data::Dumper->new([$ulist]);  print $dd->Dump();
+	return(\$ulist);
+}
+
+=head2 grabProjectRoles()
+=cut
+
+sub grabProjectRoles {
+	my ($self,@args) = @_;
+	my $ulist = [ ];
+	
+	$ulist = eval { $self->{':jira_client'}->getProjectRoles() };
+	croak sprintf("getProjectRoles(): %s",$@) if $@;
+	
+	$dd = Data::Dumper->new([$ulist]);  print $dd->Dump();
+	return(\$ulist);
+}
+
+=head2 grabComponents()
+=cut
+sub grabComponents { 
+	my ($self,@args) = @_;
+	my $ulist = [ ];
+	
+	foreach my $pkey (@args) {
+		my $temp = eval { $self->{':jira_client'}->getComponents($pkey) };
+		croak sprintf("getComponents(%s): %s",$pkey,$@) if $@;
+		$ulist = [ @{$ulist}, @{$temp} ] if ($temp);
+	}
+	
+	$dd = Data::Dumper->new([$ulist]);  print $dd->Dump();
+	return(\$ulist);
+}
+
+=head2 grabVersions()
+=cut
+
+sub grabVersions { 
+	my ($self,@args) = @_;
+	my $ulist = [ ];
+	
+	foreach my $pkey (@args) {
+		my $temp = eval { $self->{':jira_client'}->getVersions($pkey) };
+		croak sprintf("getVersions(%s): %s",$pkey,$@) if $@;
+		$ulist = [ @{$ulist}, @{$temp} ] if ($temp);
+	}
+	
+	$dd = Data::Dumper->new([$ulist]);  print $dd->Dump();
+	return(\$ulist);
+}
+
+=head2 grabProjectInfo()
+=cut
+
+sub grabProjectInfo { 
+	my ($self,@args) = @_;
+	my $ulist = [ ];
+	
+	foreach my $pkey (@args) {
+		my $temp = eval { $self->{':jira_client'}->getProjectByKey($pkey) };
+		croak sprintf("getProjectByKey(%s): %s",$pkey,$@) if $@;
+		$ulist = [ @{$ulist}, [ $temp ] ] if ($temp);
+	}
+	
+	$dd = Data::Dumper->new([$ulist]);  print $dd->Dump();
+	return(\$ulist);
+}
+
+=head3 grabProjectRoleActors()
+=cut
+
+sub grabProjectRoleActors { 
+	my ($self,$refpl,$refrl) = @_;
+	my $ulist = [ ];
+
+	$dd = Data::Dumper->new([$refpl]);  print $dd->Dump();
+	$dd = Data::Dumper->new([$refrl]);  print $dd->Dump();
+	
+	foreach my $pkey (@{$refpl}) {
+$dd = Data::Dumper->new([$pkey]);  print $dd->Dump();
+		foreach my $rkey ($refrl) {
+$dd = Data::Dumper->new([$rkey]);  print $dd->Dump();
+			my $temp = eval { $self->{':jira_client'}->getProjectRoleActors($rkey->[0],$pkey) };
+			$dd = Data::Dumper->new([$temp]);  print $dd->Dump();
+			croak sprintf("getProjectRoleActors(%s,%s): %s",$rkey,$pkey,$@) if $@;
+			$ulist = [ @{$ulist}, [ $temp ] ] if ($temp);
+		}
+	}
+	
+	$dd = Data::Dumper->new([$ulist]);  print $dd->Dump();
+	return(\$ulist);
+}
+
+=head2 grabResolutions()
+=cut
+
+sub grabResolutions { 
+	my ($self,@args) = @_;
+	my $ulist = [ ];
+	
+	$ulist = eval { $self->{':jira_client'}->getResolutions() };
+	croak sprintf("getResolutions(): %s",$@) if $@;
+	
+	$dd = Data::Dumper->new([$ulist]);  print $dd->Dump();
+	return(\$ulist);
 }
 
 =over 4
 
 =item B<grabAttachments> OUTPATH [, (<project-key>[,...])]]
-
 asdfasdf
+
+=back 
 
 =cut
 
@@ -229,41 +408,10 @@ print "=> $tspc\n";
     return($cnt_issues,$cnt_attach);
 }
 
-1;
+
+1;	### End of 'JWand.pm'
 __END__
 ### EOF
-
-=head1 SYNOPSIS
-
-Quick summary of what the module does.
-
-Perhaps a little code snippet.
-
-    use Comskil::JWand;
-
-    my $foo = Comskil::JWand->new();
-    ...
-
-=head1 EXPORT
-
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
-
-=head1 SUBROUTINES/METHODS
-
-=head2 function1
-
-=cut
-
-sub function1 {
-}
-
-=head2 function2
-
-=cut
-
-sub function2 {
-}
 
 =head1 AUTHOR
 
@@ -319,5 +467,3 @@ This program is released under the following license: restrictive
 
 
 =cut
-
-1; # End of Comskil::JWand
