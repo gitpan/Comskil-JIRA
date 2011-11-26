@@ -6,7 +6,7 @@ package Comskil;
 
 =head1 NAME
 
-Comskil::JWand - The great new Comskil::JWand!
+Comskil - The great new Comskil!
 
 =head1 VERSION
 
@@ -30,17 +30,14 @@ Perhaps a little code snippet.
 =cut
 
 BEGIN {
-    use Exporter ();
-    our ($VERSION, @ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
-
-    $VERSION     = '0.10';
-    @ISA         = qw(Exporter);
-    @EXPORT      = qw(&new );  ## qw(&func1 &func2 &func4);
-    %EXPORT_TAGS = ( );  ## e.g.  TAG => [ qw!name1 name2! ],
-    @EXPORT_OK   = ( );  ## qw($Var1 %Hashit &func3);
+    use Exporter;
+    our ($VERSION,@ISA,@EXPORT,@EXPORT_OK,%EXPORT_TAGS);
+    $VERSION = "00.12345";
+    @ISA = qw( Exporter );
+    @EXPORT = qw( );
+    %EXPORT_TAGS = ( );
+    @EXPORT_OK = qw( );
 }
- 
-our @EXPORT_OK;
 
 END { }
 
@@ -71,6 +68,5 @@ sub new {
 
 1;
 __END__
-
 #TODO Perl documentation for the library would go in here.
 #TODO Move the global values for release, version, copyright, etc. into here and export them.

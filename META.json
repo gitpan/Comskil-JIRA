@@ -1,5 +1,5 @@
 {
-   "abstract" : "A collection of tools to enable retrieval, storage, integration, and mapping of data\nfrom JIRA llive instances and backfiles.  This was created to assist in the migration\nand integration of several 3rd party hosted issue tracking tools and JIRA instances\ninto a single JIRA Studio OnDemand site.\n",
+   "abstract" : "Retrieve, Translate, Map, Integrate, and Import JIRA Issues:\nA collection of tools to enable retrieval, storage, integration, and mapping of data\nfrom JIRA live instances and backfiles.  This was created to assist in the migration\nand integration of several 3rd party hosted issue tracking tools and JIRA instances\ninto a single JIRA Studio OnDemand site.  \nVersion '00.nnnnn' == 'Raw Development, Not Even Unstable'\n",
    "author" : [
       "Peter Shiner <pshiner@comskil.com>"
    ],
@@ -43,5 +43,5 @@
       }
    },
    "release_status" : "stable",
-   "version" : "00.11328"
+   "version" : "00.11329"
 }

@@ -40,15 +40,46 @@ Perhaps a little code snippet.
 =cut
 
 BEGIN {
-    use Exporter (); ### $Exporter::Verbose=1;
-	
+    use Exporter;
 	our ($VERSION, @ISA, @EXPORT, @EXPORT_OK, %EXPORT_TAGS);
- 
-    $VERSION = '0.10';
+	$VERSION = $Comskil::VERSION;
     @ISA = qw(Exporter);
-    @EXPORT	= qw( new );
-    @EXPORT_OK = qw( );
-    %EXPORT_TAGS = ( ALL => [ qw(  ) ] );
+    @EXPORT	= qw(
+		buildProjectImportFile
+    );
+    @EXPORT_OK = qw(
+		getDebug
+		getVerbose
+		setDebug
+		setVerbose
+    	grabPriorities
+    	grabProjectRoles
+    	grabResolutions
+    	grabStatuses
+    	grabAttachments
+    	grabComponents
+    	grabProjectInfo
+    	grabServerInfo
+    	grabVersions
+    );
+    %EXPORT_TAGS = ( 
+    	ALL => [ qw(
+			buildProjectImportFile
+			getDebug
+			getVerbose
+			setDebug
+			setVerbose
+    			grabAttachments
+    			grabComponents
+				grabPriorities
+    			grabProjectInfo
+				grabProjectRoles
+    			grabServerInfo
+				grabStatuses    
+				grabResolutions
+    			grabVersions
+    		) ] 
+    );
 }
 
 END { }
@@ -78,7 +109,13 @@ use JIRA::Client;
 sub _connect {
 	my ($self,@args) = @_;
 
-   return($self->{':jira_client'})
+   return($self->{client_handle})
+}
+
+sub _grab_list {
+	my ($self,@args) = @_;
+	my $ulist = [ ];
+	return(\$ulist);	
 }
 
 
@@ -97,11 +134,10 @@ sub _connect {
 #
 # Args: A hash containing key => value pairs to initialize the class.  The 
 #       valid option keys are:
-sub new {
-    my $class = shift;
-    my $options = shift;
+sub __new {
+    my ($class,@args) = @_;
     my $self = {
-        ':jira_client' => undef		## #FIX Get rid of the leading colon on options
+         client_handle => undef		## #FIX Get rid of the leading colon on options
         ,':user_agent' => undef
         ,':max_results' => 13
         ,':max_issues' => undef
@@ -111,21 +147,49 @@ sub new {
         ,'_server_info' => undef
         ,'_user_agent' => undef
         };
-    @$self{ keys %{$options} } = values %{$options};
+    foreach my $href (@args) {
+    	@$self{ keys %{$href} } = values %{$href};
+    }
     bless($self,$class);
 
-    if (! $self->{':jira_client'}) {
-        $self->{':jira_client'} = JIRA::Client->new(
-            $self->{':url'}
-        	,$self->{':username'}
-        	,$self->{':password'}
-        	,( 'timeout' => 600)
+    if ( (! $self->{client_handle}) && (! $self->{fileset}) ) {
+        $self->{client_handle} = JIRA::Client->new(
+             $self->{url}
+        	,$self->{username}
+        	,$self->{password}
         	);
-    	$self->{'_server_info'} = eval { $self->{':jira_client'}->getServerInfo() };
+    	$self->{'_server_info'} = eval { $self->{client_handle}->getServerInfo() };
     	croak sprintf("getServerInfo(): %s",$@) if $@;
+
+    	if ($self->{debug} >= 1) { $dd = Data::Dumper->new([$self->{_server_info}]); print $dd->Dump(); }
+    	if ($self->{verbose}) {
+    		print("connected to: ".$self->{_server_info}->{baseUrl}." as '".$self->{username}."'\n");
+    		print("server version: ".$self->{_server_info}->{version}.
+    			" build: ".$self->{_server_info}->{buildNumber}."\n");
+    	}
     }
-    
-	return( $self->{':jira_client'} ? $self : undef);
+
+	if ($self->{debug} >= 3) { $dd = Data::Dumper->new([$self]);  print $dd->Dump(); }
+	return( $self->{client_handle} ? $self : undef);
+}
+
+
+=head2 appendToChain()
+=cut
+
+sub appendToChain {
+	my ($self,$wand) = @_;
+	croak "appendToChain(undef) failed, undef not a JWand\n" if (! $wand);
+	if ($self->{_next_wand}) {
+		print($self->{bname}," -> ") if ($self->{verbose});
+		$self->{_next_wand}->appendToChain($wand);
+	} else {
+		print($self->{bname}," => ",$wand->{bname},"\n") if ($self->{verbose});
+		$self->{_next_wand} = $wand;
+	}
+	
+	if ($self->{debug} >= 3) { $dd = Data::Dumper->new([$self]);  print $dd->Dump(); }  
+	return($self);
 }
 
 =head2 jira_handle()
@@ -133,7 +197,7 @@ sub new {
 
 sub jira_handle { 
 	my $self = shift;
-	return($self->{':jira_client'}); 
+	return($self->{client_handle}); 
 }
 
 =head2 grabProjectKeys()
@@ -143,24 +207,26 @@ sub grabProjectKeys {
 	my($self,$regx) = @_;
 }
 
-sub _grab_list {
-	my ($self,@args) = @_;
-	my $ulist = [ ];
-	return(\$ulist);	
-}
-
 =head2 grabPriorities()
 =cut
 
 sub grabPriorities {
 	my ($self,@args) = @_;
-	my $ulist = [ ];
+	my ($rslt,$ulist);
 	
-	$ulist = eval { $self->{':jira_client'}->getPriorities() };
+	$ulist = eval { $self->{client_handle}->getPriorities() };
 	croak sprintf("getPriorities(): %s",$@) if $@;
+	foreach my $key (@{$ulist}) { $key->{bname} = $self->{bname}; }
+	if ($self->{debug} >= 1) { $dd = Data::Dumper->new([$ulist]);  print $dd->Dump(); }
+
+	if ($self->{_next_wand}) {
+		$rslt = $self->{_next_wand}->grabPriorities(@args);
+		if ($self->{debug} >= 2) { $dd = Data::Dumper->new([$rslt]);  print $dd->Dump(); }
+		$ulist = [ @{$ulist}, @{$rslt} ];
+	}
 	
-	$dd = Data::Dumper->new([$ulist]);  print $dd->Dump();
-	return(\$ulist);
+	if ($self->{debug} >= 3) { $dd = Data::Dumper->new([$ulist]);  print $dd->Dump(); }
+	return($ulist);
 }
 
 =head2 grabStatuses()
@@ -168,13 +234,43 @@ sub grabPriorities {
 
 sub grabStatuses {
 	my ($self,@args) = @_;
-	my $ulist = [ ];
+	my ($rslt,$ulist);
 	
-	$ulist = eval { $self->{':jira_client'}->getStatuses() };
+	$ulist = eval { $self->{client_handle}->getStatuses() };
 	croak sprintf("getStatuses(): %s",$@) if $@;
+	foreach my $key (@{$ulist}) { $key->{bname} = $self->{bname}; }
+	if ($self->{debug} >= 1) { $dd = Data::Dumper->new([$ulist]);  print $dd->Dump(); }
+
+	if ($self->{_next_wand}) {
+		$rslt = $self->{_next_wand}->grabStatuses(@args);
+		if ($self->{debug} >= 2) { $dd = Data::Dumper->new([$rslt]);  print $dd->Dump(); }
+		$ulist = [ @{$ulist}, @{$rslt} ];
+	}
 	
-	$dd = Data::Dumper->new([$ulist]);  print $dd->Dump();
-	return(\$ulist);
+	if ($self->{debug} >= 3) { $dd = Data::Dumper->new([$ulist]);  print $dd->Dump(); }
+	return($ulist);
+}
+
+=head2 grabResolutions()
+=cut
+
+sub grabResolutions { 
+	my ($self,@args) = @_;
+	my ($rslt,$ulist);
+	
+	$ulist = eval { $self->{client_handle}->getResolutions() };
+	croak sprintf("getResolutions(): %s",$@) if $@;
+	foreach my $key (@{$ulist}) { $key->{bname} = $self->{bname}; }
+	if ($self->{debug} >= 1) { $dd = Data::Dumper->new([$ulist]);  print $dd->Dump(); }
+
+	if ($self->{_next_wand}) {
+		$rslt = $self->{_next_wand}->grabResolutions(@args);
+		if ($self->{debug} >= 2) { $dd = Data::Dumper->new([$rslt]);  print $dd->Dump(); }
+		$ulist = [ @{$ulist}, @{$rslt} ];
+	}
+	
+	if ($self->{debug} >= 3) { $dd = Data::Dumper->new([$ulist]);  print $dd->Dump(); }
+	return($ulist);
 }
 
 =head2 grabProjectRoles()
@@ -182,13 +278,21 @@ sub grabStatuses {
 
 sub grabProjectRoles {
 	my ($self,@args) = @_;
-	my $ulist = [ ];
+	my ($rslt,$ulist);
 	
-	$ulist = eval { $self->{':jira_client'}->getProjectRoles() };
+	$ulist = eval { $self->{client_handle}->getProjectRoles() };
 	croak sprintf("getProjectRoles(): %s",$@) if $@;
+	foreach my $key (@{$ulist}) { $key->{bname} = $self->{bname}; }
+	if ($self->{debug} >= 1) { $dd = Data::Dumper->new([$ulist]);  print $dd->Dump(); }
+
+	if ($self->{_next_wand}) {
+		$rslt = $self->{_next_wand}->grabProjectRoles(@args);
+		if ($self->{debug} >= 2) { $dd = Data::Dumper->new([$rslt]);  print $dd->Dump(); }
+		$ulist = [ @{$ulist}, @{$rslt} ];
+	}
 	
-	$dd = Data::Dumper->new([$ulist]);  print $dd->Dump();
-	return(\$ulist);
+	if ($self->{debug} >= 3) { $dd = Data::Dumper->new([$ulist]);  print $dd->Dump(); }
+	return($ulist);
 }
 
 =head2 grabComponents()
@@ -198,7 +302,7 @@ sub grabComponents {
 	my $ulist = [ ];
 	
 	foreach my $pkey (@args) {
-		my $temp = eval { $self->{':jira_client'}->getComponents($pkey) };
+		my $temp = eval { $self->{client_handle}->getComponents($pkey) };
 		croak sprintf("getComponents(%s): %s",$pkey,$@) if $@;
 		$ulist = [ @{$ulist}, @{$temp} ] if ($temp);
 	}
@@ -215,7 +319,7 @@ sub grabVersions {
 	my $ulist = [ ];
 	
 	foreach my $pkey (@args) {
-		my $temp = eval { $self->{':jira_client'}->getVersions($pkey) };
+		my $temp = eval { $self->{client_handle}->getVersions($pkey) };
 		croak sprintf("getVersions(%s): %s",$pkey,$@) if $@;
 		$ulist = [ @{$ulist}, @{$temp} ] if ($temp);
 	}
@@ -232,7 +336,7 @@ sub grabProjectInfo {
 	my $ulist = [ ];
 	
 	foreach my $pkey (@args) {
-		my $temp = eval { $self->{':jira_client'}->getProjectByKey($pkey) };
+		my $temp = eval { $self->{client_handle}->getProjectByKey($pkey) };
 		croak sprintf("getProjectByKey(%s): %s",$pkey,$@) if $@;
 		$ulist = [ @{$ulist}, [ $temp ] ] if ($temp);
 	}
@@ -255,26 +359,12 @@ sub grabProjectRoleActors {
 $dd = Data::Dumper->new([$pkey]);  print $dd->Dump();
 		foreach my $rkey ($refrl) {
 $dd = Data::Dumper->new([$rkey]);  print $dd->Dump();
-			my $temp = eval { $self->{':jira_client'}->getProjectRoleActors($rkey->[0],$pkey) };
+			my $temp = eval { $self->{client_handle}->getProjectRoleActors($rkey->[0],$pkey) };
 			$dd = Data::Dumper->new([$temp]);  print $dd->Dump();
 			croak sprintf("getProjectRoleActors(%s,%s): %s",$rkey,$pkey,$@) if $@;
 			$ulist = [ @{$ulist}, [ $temp ] ] if ($temp);
 		}
 	}
-	
-	$dd = Data::Dumper->new([$ulist]);  print $dd->Dump();
-	return(\$ulist);
-}
-
-=head2 grabResolutions()
-=cut
-
-sub grabResolutions { 
-	my ($self,@args) = @_;
-	my $ulist = [ ];
-	
-	$ulist = eval { $self->{':jira_client'}->getResolutions() };
-	croak sprintf("getResolutions(): %s",$@) if $@;
 	
 	$dd = Data::Dumper->new([$ulist]);  print $dd->Dump();
 	return(\$ulist);
@@ -295,7 +385,7 @@ sub grabAttachments {
 	
     ## Verify we are connected to a remote JIRA instance.
 
-    return(undef) if (! $self->{':jira_client'});
+    return(undef) if (! $self->{client_handle});
 	
 	## If no project keys are specified find them all.
 	
@@ -327,7 +417,7 @@ sub grabAttachments {
 
 print "$pkey\n";
     	
-        my $x = eval { $self->{':jira_client'}->getProjectByKey($pkey) };
+        my $x = eval { $self->{client_handle}->getProjectByKey($pkey) };
         if ($@) {
         	carp sprintf("getProjectByKey('%s'): %s",$pkey,$@);
         	last;
@@ -341,7 +431,7 @@ print "$pkey\n";
 #print "more issues....\n";
 
             my $ilist = eval { 
-                $self->{':jira_client'}->getIssuesFromJqlSearch($jql,$self->{':max_results'}) 
+                $self->{client_handle}->getIssuesFromJqlSearch($jql,$self->{':max_results'}) 
                 };
             if ($@) {
                 carp sprintf("getIssuesFromJqlSearch('%s',%n): %s",$jql,$self->{':max_results'},$@);
@@ -354,7 +444,7 @@ print "$pkey\n";
                 $ikey = $issue->{'key'};
 print "$ikey\n";                
                 if (@{$issue->{'attachmentNames'}}) {
-                    my $attach_list = eval { $self->{':jira_client'}->getAttachmentsFromIssue($ikey) };
+                    my $attach_list = eval { $self->{client_handle}->getAttachmentsFromIssue($ikey) };
                     croak sprintf("getAttachmentsFromIssue('%s'): %s",$ikey,$@) if $@;
 
                     ## $dd = Data::Dumper->new([$attach_list]); print $dd->Dump();
@@ -406,6 +496,103 @@ print "=> $tspc\n";
         }
     }
     return($cnt_issues,$cnt_attach);
+}
+
+
+
+=head2 getDebug()
+=cut
+sub getDebug {
+	my ($self,@args) = @_;
+	carp "getDebug() is not implemented";
+	return(undef);
+}
+
+=head2 getVerbose()
+=cut
+sub getVerbose {
+	my ($self,@args) = @_;
+	carp "getVerbose() is not implemented";
+	return(undef);
+}
+
+=head2 setDebug()
+=cut
+
+sub setDebug {
+	my ($self,@args) = @_;
+	carp "setDebug() is not implemented";
+	return(undef);
+}
+
+=head2 setVerbose()
+=cut
+
+sub setVerbose {
+	my ($self,@args) = @_;
+	carp "setVerbose() is not implemented";
+	return(undef);
+}
+
+sub new {
+	my ($class,@args) = @_;
+	my $self = ( );
+    foreach my $href (@args) {
+    	@$self{ keys %{$href} } = values %{$href};
+    }
+    bless($self,$class);
+	
+	croak "error: configuration filename is missing" if (! $self->{filename});
+	croak "error: configuration file '".$self->{filename}."' not found" if (! -f $self->{filename});
+	if (! ($self->{config} = _get_configuration($self->{filename}))) {
+		croak "error: configuration file contains errors";
+	}
+	return($self);
+}
+
+
+my %attribs = (
+	 'id' 			=> [ 'integer', '' ]
+	 ,'issue'		=> [ 'integer', 'as' ]
+	 ,'author'		=> [ 'string', '' ]
+	 ,'body'		=> [ 'text', '' ]
+	 ,'created'		=> [ 'timestamp', '' ]
+	 ,'updated' 	=> [ 'timestamp', 'asd' ]
+	 ,'key'			=> [ 'string', 'asd' ]
+	 ,'project'		=> [ 'string', 'asd' ]
+	 ,'reporter'	=> [ 'string', 'asd' ]
+	 ,'assignee'	=> [ 'string', 'asd' ]
+	 ,'type'		=> [ 'integer', 'type' ]
+	 ,'summary'		=> [ 'string', 'asd' ]
+	 ,'priority'	=> [ 'integer', 'priorities' ]
+	 ,'resolution'	=> [ 'integer', 'resolutions' ]
+	 ,'status'		=> [ 'integer', 'statuses' ]
+	 ,'votes'		=> [ 'integer', 0 ]
+	 ,'watched'		=> [ 'integer', 0 ]
+	 ,'workflowId'	=> [ 'integer', 'asd' ]
+	 ,'security'	=> [ 'integer', 'asd' ]
+	 ,'description'	=> [ 'text', 'asd' ]
+);
+
+my %entities = (
+	 'WorkLog' 	=> [ 'id', 'issue', 'author', 'body', 'created', 'updated', 'startdate', 'timeworked' ]
+	,'Issue' 	=> [ 'id', 'key', 'project', 'reporter', 'assignee', 'type', 'summary', 
+	 				'priority', 'resolution', 'status', 'created', 'updated', 'votes', 'watched',
+	 				'workflowId', 'security', 'description' ]
+);
+
+=head2 buildProjectImportFile
+=cut
+
+sub buildProjectImportFile {
+	my ($self,@args) = @_;
+    foreach my $href (@args) {
+    	@$self{ keys %{$href} } = values %{$href};
+    }
+
+	
+
+	return(undef);
 }
 
 
